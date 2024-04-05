@@ -12,7 +12,7 @@ class T1BaseViewModel(application: Application): ViewModel() {
 
     val allMedicines: LiveData<List<Medicine>>
     private val repository: MedicineRepository
-    val searchResults: MutableLiveData<List<Medicine>>
+    private val searchResults: MutableLiveData<List<Medicine>>
 
     init {
         val medicineDb = MedicineDatabase.getInstance(application)
@@ -32,5 +32,9 @@ class T1BaseViewModel(application: Application): ViewModel() {
 
     fun findMedicine(name: String) {
         repository.findMedicine(name)
+    }
+
+    fun takeMedicine(medicine: Medicine) {
+        repository.takeMedicine(medicine)
     }
 }

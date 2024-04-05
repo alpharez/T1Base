@@ -37,10 +37,13 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TimePicker
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.ViewModelProvider
@@ -53,6 +56,8 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import com.alpharez.t1base.data.Medicine
+import java.util.Calendar
+import java.util.Date
 
 
 class MainActivity : ComponentActivity() {
@@ -79,6 +84,8 @@ class MainActivity : ComponentActivity() {
 fun Medications(modifier: Modifier = Modifier, meds: List<Medicine>, viewModel: T1BaseViewModel) {
     var showAddMedication by rememberSaveable { mutableStateOf(false) }
     var medName by remember { mutableStateOf("Name") }
+    var medDosageForm by remember { mutableStateOf("Form") }
+    var medFrequency by remember { mutableStateOf("1") }
 
     Surface(modifier) {
         Scaffold(
@@ -104,7 +111,7 @@ fun Medications(modifier: Modifier = Modifier, meds: List<Medicine>, viewModel: 
                 }
             },
         ) { innerPadding ->
-            if (!showAddMedication) {
+            if (!showAddMedication) { /* SHOW MEDICATION LIST */
                 LazyColumn(
                     modifier = Modifier.padding(innerPadding),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -113,7 +120,7 @@ fun Medications(modifier: Modifier = Modifier, meds: List<Medicine>, viewModel: 
                         Medication(med = med, viewModel = viewModel)
                     }
                 }
-            } else {
+            } else { /* ADD NEW MEDICATION */
                 Column(horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()) {
                     Text("ADD MEDICATION")
@@ -122,10 +129,21 @@ fun Medications(modifier: Modifier = Modifier, meds: List<Medicine>, viewModel: 
                         onValueChange = { medName = it },
                         label = { Text("Medication Name") }
                     )
+                    TextField(
+                        value = medDosageForm,
+                        onValueChange = { medDosageForm = it },
+                        label = { Text("DosageForm") }
+                    )
+                    TextField(
+                        value = medFrequency,
+                        onValueChange = { medFrequency = it },
+                        label = { Text("Take How Often: Daily, Every 3 Days, Weekly") }
+                    )
                     Button(onClick = {
-                        viewModel.insertMedicine(Medicine(medName))
+                        viewModel.insertMedicine(Medicine(medName, medDosageForm, medFrequency.toInt(), Date(0)))
                         showAddMedication = false
-                    }) {
+                    }
+                    ) {
                         Text("Add")
                     }
                 }
@@ -138,30 +156,76 @@ fun Medications(modifier: Modifier = Modifier, meds: List<Medicine>, viewModel: 
 fun Medication(med: Medicine, viewModel: T1BaseViewModel, modifier: Modifier = Modifier) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val extraPadding by animateDpAsState(
-        if (expanded) 48.dp else 0.dp,
+        if (expanded) 8.dp else 0.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
         ), label = "animation padding"
     )
-    Surface(color = MaterialTheme.colorScheme.primary,
+    var medFrequency = ""
+    var dayOffset = 1
+    if (med.frequency == 3) {
+        medFrequency = "Weekly"
+        dayOffset = 7
+
+    } else if (med.frequency == 2) {
+        medFrequency = "Every 3 Days"
+        dayOffset = 3
+    } else {
+        medFrequency = "Daily"
+    }
+    var dt = med.lastTaken
+    var c = Calendar.getInstance()
+    c.setTime(dt)
+    c.add(Calendar.DATE, dayOffset)
+    dt = c.time
+    Card(colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = modifier.padding(vertical = 4.dp, horizontal = 8.dp)) {
         Row(modifier = Modifier.padding(24.dp)) {
             Column(modifier = modifier
                 .weight(1f)
                 .padding(bottom = extraPadding.coerceAtLeast(0.dp))) {
                 Text(med.medicineName, style = MaterialTheme.typography.headlineSmall)
-                Text("10mg, take at 9pm")
+                Text(med.dosageForm + ", Take " + medFrequency)
                 if(expanded) {
                     Column {
-                        Text("Took last night at 8:45pm")
-                        IconButton(onClick = {
-                            viewModel.deleteMedicine(med)
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.baseline_delete_24),
-                                contentDescription = "delete", modifier = Modifier.size(40.dp)
-                            )
+                        Text("Last Taken: " + med.lastTaken)
+                        Text("Take Next: $dt")
+                        Row {
+                            IconButton(onClick = {
+                                viewModel.deleteMedicine(med)
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.baseline_delete_24),
+                                    contentDescription = "delete", modifier = Modifier.size(40.dp)
+                                )
+                            }
+                            IconButton(onClick = {
+                                /* EDIT */
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.baseline_edit_note_24),
+                                    contentDescription = "edit", modifier = Modifier.size(40.dp)
+                                )
+                            }
+                            IconButton(onClick = {
+                                /* Postpone */
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.baseline_access_time_24),
+                                    contentDescription = "postpone", modifier = Modifier.size(40.dp)
+                                )
+                            }
+                            IconButton(onClick = {
+                                med.lastTaken = Date()
+                                viewModel.takeMedicine(med)
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.baseline_medication_24),
+                                    contentDescription = "Take Medicine", modifier = Modifier.size(40.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -201,9 +265,16 @@ fun AddMedFloatingActionButton(onClick: () -> Unit) {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun T1BasePreview() {
-    val meds = listOf<String>()
     T1BaseTheme {
-            //Medications(meds = meds, viewModel = viewMod)
+        val owner = LocalViewModelStoreOwner.current
+
+        owner?.let {
+            val viewMod: T1BaseViewModel = viewModel(it, "medicine_database", T1BaseViewModelFactory(
+                LocalContext.current.applicationContext as Application)
+            )
+            val allMedicines by viewMod.allMedicines.observeAsState(listOf())
+            Medications(meds = allMedicines, viewModel = viewMod)
+        }
     }
 }
 

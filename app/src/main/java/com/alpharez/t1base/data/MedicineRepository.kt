@@ -24,6 +24,12 @@ class MedicineRepository(private val medicineDao: MedicineDao) {
         }
     }
 
+    fun takeMedicine(medicine: Medicine) {
+        coroutineScope.launch(Dispatchers.IO) {
+            medicineDao.update(medicine)
+        }
+    }
+
     fun findMedicine(name: String) {
         coroutineScope.launch(Dispatchers.Main) {
             searchResults.value = asyncFind(name).await()
